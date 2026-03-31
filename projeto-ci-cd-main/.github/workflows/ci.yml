@@ -1,8 +1,8 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-  pull_request:
+    branches: [ "main" ]
 
 jobs:
   test:
@@ -10,36 +10,40 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8
+        image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: 12345678
           MYSQL_DATABASE: db_produtos
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -p12345678"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -p12345678"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=5
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-      - name: Instalar dependências
-        run: pip install -r requirements.txt
+    - name: Instalar dependências
+      run: |
+        pip install -r requirements.txt
 
-      - name: Aguardar MySQL
-        run: sleep 20
+    - name: Aguardar MySQL
+      run: |
+        sudo apt-get install -y mysql-client
+        until mysql -h 127.0.0.1 -uroot -p12345678 -e "SELECT 1"; do
+          sleep 2
+        done
 
-      - name: Criar banco
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mysql-client
-          mysql -h 127.0.0.1 -u root -p12345678 < init.sql
+    - name: Inicializar banco
+      run: |
+        mysql -h 127.0.0.1 -uroot -p12345678 < init.sql
 
-      - name: Rodar testes
-        run: pytest -v
+    - name: Rodar testes
+      run: |
+        pytest
